@@ -94,10 +94,41 @@
             position: absolute;
             bottom: 2rem;
             width: 100%;
+            padding: 0 1rem;
             font-size: 0.7rem;
             letter-spacing: 0.1rem;
-            opacity: 0.6;
+            opacity: 0.8;
             font-family: 'Cinzel', serif;
+            line-height: 1.8;
+        }
+
+        .address {
+            margin-bottom: 0.5rem;
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            letter-spacing: 0;
+            font-size: 0.8rem;
+        }
+
+        .directions-link {
+            color: var(--gold-color);
+            text-decoration: none;
+            border-bottom: 1px solid var(--gold-color);
+            padding-bottom: 2px;
+            transition: opacity 0.3s;
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            letter-spacing: 0.15rem;
+        }
+
+        .directions-link:hover {
+            opacity: 0.7;
+        }
+
+        .copyright {
+            margin-top: 1rem;
+            opacity: 0.5;
+            font-size: 0.6rem;
         }
 
         /* Responsive */
@@ -123,7 +154,9 @@
     </div>
 
     <footer>
-        &copy; 2026 MOKSHA JEWELS. ALL RIGHTS RESERVED.
+        <div class="address">60-9-1/A, Polyclinic Rd, Kedareswarapeta, Siddhartha Nagar, Vijayawada, AP 520010</div>
+        <a href="https://www.google.com/maps/dir//MOKSHA+JEWELS+Gold+%26+Diamonds+LLP,+60-9-1%2FA,+Polyclinic+Rd,+Kedareswarapeta,+Siddhartha+Nagar,+Vijayawada,+Andhra+Pradesh+520010/" target="_blank" class="directions-link">Get Directions</a>
+        <div class="copyright">&copy; 2026 MOKSHA JEWELS. ALL RIGHTS RESERVED.</div>
     </footer>
 </body>
 </html>
