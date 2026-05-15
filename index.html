@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moksha Jewels - Under Construction</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #291c0e;
+            --gold-color: #D4AF37;
+            --text-color: #fdfaf6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Playfair Display', serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .container {
+            padding: 2rem;
+            max-width: 600px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 1.5s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 3rem;
+            letter-spacing: 0.5rem;
+            color: var(--gold-color);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .tagline {
+            font-family: 'Cinzel', serif;
+            font-size: 0.9rem;
+            letter-spacing: 0.2rem;
+            margin-bottom: 3rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+        }
+
+        .status-badge {
+            display: inline-block;
+            border: 1px solid var(--gold-color);
+            padding: 0.5rem 1.5rem;
+            font-size: 0.8rem;
+            letter-spacing: 0.3rem;
+            margin-bottom: 2rem;
+            color: var(--gold-color);
+            font-family: 'Cinzel', serif;
+        }
+
+        p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 3rem;
+            font-style: italic;
+            opacity: 0.9;
+        }
+
+        footer {
+            position: absolute;
+            bottom: 2rem;
+            width: 100%;
+            font-size: 0.7rem;
+            letter-spacing: 0.1rem;
+            opacity: 0.6;
+            font-family: 'Cinzel', serif;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 2rem;
+            }
+            .tagline {
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Moksha Jewels</h1>
+        <div class="tagline">Crafting Elegance for Eternity</div>
+        
+        <div class="status-badge">UNDER CONSTRUCTION</div>
+        
+        <p>Our digital masterpiece is currently being handcrafted. Join us soon for a new era of luxury jewelry.</p>
+    </div>
+
+    <footer>
+        &copy; 2026 MOKSHA JEWELS. ALL RIGHTS RESERVED.
+    </footer>
+</body>
+</html>
