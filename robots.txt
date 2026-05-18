@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://mokshajewels.in/sitemap.xml
+Sitemap: https://www.mokshajewels.in/sitemap.xml
