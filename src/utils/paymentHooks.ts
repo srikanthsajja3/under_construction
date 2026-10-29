@@ -46,7 +46,7 @@ export const usePaymentGateway = (countryCode: string) => {
       if (error?.code === 0 || error?.description?.includes('cancel')) {
         return { error: { code: 'Canceled', message: 'User canceled payment' } };
       }
-      return { error: { code: 'Failed', message: error?.description || 'Payment failed' } };
+      return { error: { code: 'Failed', message: error?.description || error?.message || 'Payment failed' } };
     }
   };
 

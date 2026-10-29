@@ -71,18 +71,32 @@ const VendorDashboardScreen: React.FC<VendorDashboardScreenProps> = ({ scrollY: 
   }, [isVendor]);
 
   const fetchVendorData = async () => {
+    if (!user?.id) return;
     setLoading(true);
     try {
-      const { data: settings, error: sError } = await supabase
+      let { data: settings, error: sError } = await supabase
         .from('vendor_settings')
         .select('*, vendors(*)')
-        .eq('user_id', user?.id)
-        .single();
+        .eq('user_id', user.id)
+        .maybeSingle();
       
-      if (sError) throw sError;
+      if (!settings || !settings.vendor_id) {
+        console.log('Vendor settings or vendor_id missing, auto-linking vendor account for user:', user.id);
+        const { ensureVendorAccount } = await import('../utils/vendorService');
+        const vendorId = await ensureVendorAccount(user);
+        if (vendorId) {
+          const { data: updatedSettings } = await supabase
+            .from('vendor_settings')
+            .select('*, vendors(*)')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          settings = updatedSettings;
+        }
+      }
+
       setVendorSettings(settings);
 
-      if (settings.vendor_id) {
+      if (settings?.vendor_id) {
         const { data: products } = await supabase
           .from('products')
           .select('*')
@@ -355,8 +369,8 @@ const VendorDashboardScreen: React.FC<VendorDashboardScreenProps> = ({ scrollY: 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.contentWrapper}>
             <View style={[styles.vendorHeader, isMobile && { padding: 20 }]}>
-              <Text style={[styles.vendorTitle, isMobile && { fontSize: 22 }]}>Partner Portal</Text>
-              <Text style={styles.vendorSubtitle}>{vendorSettings?.business_name || 'Artisan Partner'} | {vendorSettings?.vendors?.name || 'Pending Link'}</Text>
+              <Text style={[styles.vendorTitle, isMobile && { fontSize: 22 }]}>Store Host Portal</Text>
+              <Text style={styles.vendorSubtitle}>{vendorSettings?.business_name || 'Moksha Jewels Host Store'}</Text>
               
               {__DEV__ && !vendorSettings?.vendor_id && !loading ? (
                 <TouchableOpacity 

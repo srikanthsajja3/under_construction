@@ -25,6 +25,8 @@ import { useUI } from "../contexts/UIContext";
 import { useGoldRate } from "../contexts/GoldRateContext";
 import { fetchProductById } from "../data/products";
 import { calculateApkEstimate, fetchServerApkEstimate, EstimationResult } from "../utils/apkEstimationEngine";
+import { FEATURE_FLAGS } from "../config/features";
+import { Linking } from "react-native";
 
 interface ProductDetailsScreenProps {
   scrollY?: Animated.Value;
@@ -241,23 +243,60 @@ const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({ scrollY: sc
     );
   };
 
+  const handleWhatsAppInquiry = () => {
+    if (!product) return;
+    const phone = FEATURE_FLAGS.WHATSAPP_PHONE_NUMBER;
+    const code = product.productCode || product.sku || product.id;
+    const currentPrice = dynamicPriceInfo?.total || product.price;
+    const priceText = FEATURE_FLAGS.SHOW_PRICES && currentPrice ? `\nEstimated Price: ${formatPrice(currentPrice, countryCode)}` : '';
+    
+    let linkText = '';
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      linkText = `\nLink: ${window.location.href}`;
+    }
+
+    const message = `Namaste Moksha Jewels! I am interested in this masterpiece:\n\n*${product.name}*\nProduct Code: ${code}${priceText}${linkText}\n\nPlease share price, live availability, and custom crafting options.`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open(url, '_blank');
+    } else {
+      Linking.openURL(url).catch(() => {
+        Alert.alert("Error", "Could not open WhatsApp.");
+      });
+    }
+  };
+
   const handleWhatsAppConsultation = () => {
-    Alert.alert(
-      "Live Jeweler Consultation",
-      "Opening WhatsApp to connect you with our lead jewelry consultant..."
-    );
+    handleWhatsAppInquiry();
   };
 
   const allImages = useMemo(() => {
-    if (!product) return [];
-    const images = [product.image];
-    if (product.galleryUrls && Array.isArray(product.galleryUrls)) {
-      images.push(...product.galleryUrls);
-    }
-    return images.filter(img => !!img);
-  }, [product?.image, product?.galleryUrls]);
+    if (!product || !product.image) return [];
+    // Strictly 1 verified image matching the item SKU
+    return [product.image];
+  }, [product?.image]);
 
   const isLargeScreen = width > 700;
+
+  const validStonesInDetail = useMemo(() => {
+    if (!product?.stonesInDetail || !Array.isArray(product.stonesInDetail)) return [];
+    return product.stonesInDetail.filter(st => {
+      if (!st || !st.name) return false;
+      const lower = st.name.trim().toLowerCase();
+      if (lower === 'none' || lower === 'null') return false;
+      return true;
+    });
+  }, [product?.stonesInDetail]);
+
+  const stoneWeightGrams = useMemo(() => {
+    if (!product?.grossWeight) return 0;
+    const net = product.netWeight || product.goldWeight || 0;
+    if (product.grossWeight > net && (product.grossWeight - net) > 0.005) {
+      return Number((product.grossWeight - net).toFixed(3));
+    }
+    return 0;
+  }, [product?.grossWeight, product?.netWeight, product?.goldWeight]);
 
   const thumbnailWidth = 64;
   const thumbnailSpacing = 12;
@@ -430,7 +469,8 @@ const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({ scrollY: sc
 
   const handleBuyNow = async () => {
     if (product) {
-      await addToCart(product);
+      const finalPrice = dynamicPriceInfo?.total || product.price || 1000;
+      await addToCart({ ...product, price: finalPrice });
     }
     if (!user) {
       setLoginVisible(true);
@@ -441,7 +481,8 @@ const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({ scrollY: sc
 
   const handleAddToCart = async () => {
     if (product) {
-      await addToCart(product);
+      const finalPrice = dynamicPriceInfo?.total || product.price || 1000;
+      await addToCart({ ...product, price: finalPrice });
       setShowAddedMsg(true);
       setTimeout(() => setShowAddedMsg(false), 3000);
     }
@@ -560,13 +601,26 @@ const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({ scrollY: sc
                 width: isLargeScreen ? undefined : mainImageWidth,
                 flex: isLargeScreen ? 1 : undefined,
               }]}>
-                <TouchableOpacity style={styles.actionButton} onPress={handleBuyNow}>
-                  <Text style={styles.actionButtonText}>Buy Now</Text>
-                </TouchableOpacity>
+                {FEATURE_FLAGS.ENABLE_CHECKOUT ? (
+                  <>
+                    <TouchableOpacity style={styles.actionButton} onPress={handleBuyNow}>
+                      <Text style={styles.actionButtonText}>Buy Now</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.actionButton, styles.addToCartButton]} onPress={handleAddToCart}>
-                  <Text style={styles.addToCartButtonText}>Add to Bag</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity style={[styles.actionButton, styles.addToCartButton]} onPress={handleAddToCart}>
+                      <Text style={styles.addToCartButtonText}>Add to Bag</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.whatsappInquiryButton]} 
+                    onPress={handleWhatsAppInquiry}
+                    activeOpacity={0.8}
+                  >
+                    <FontAwesome5 name="whatsapp" size={20} color="#fff" style={{ marginRight: 10 }} />
+                    <Text style={styles.whatsappInquiryButtonText}>Inquire on WhatsApp</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -576,43 +630,49 @@ const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({ scrollY: sc
               <Text style={styles.productCode}>Product Code: {product.productCode}</Text>
               
               {/* Dynamic Price Display */}
-              <View style={styles.priceContainer}>
-                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={styles.price}>
-                    {formatPrice(dynamicPriceInfo?.total || product.price, countryCode)}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setIsPriceBreakupVisible(true)}
-                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#382614', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#4a3520' }}
-                    activeOpacity={0.8}
-                  >
-                    <FontAwesome5 name="list-alt" size={12} color="#D4AF37" style={{ marginRight: 6 }} />
-                    <Text style={{ color: '#D4AF37', fontSize: 12, fontWeight: '600' }}>Price Breakup</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.divider} />
+              {FEATURE_FLAGS.SHOW_PRICES && (
+                <>
+                  <View style={styles.priceContainer}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={styles.price}>
+                        {formatPrice(dynamicPriceInfo?.total || product.price, countryCode)}
+                      </Text>
+                      {FEATURE_FLAGS.SHOW_PRICE_BREAKUP && (
+                        <TouchableOpacity
+                          onPress={() => setIsPriceBreakupVisible(true)}
+                          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#382614', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#4a3520' }}
+                          activeOpacity={0.8}
+                        >
+                          <FontAwesome5 name="list-alt" size={12} color="#D4AF37" style={{ marginRight: 6 }} />
+                          <Text style={{ color: '#D4AF37', fontSize: 12, fontWeight: '600' }}>Price Breakup</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.divider} />
+                </>
+              )}
 
               {/* Product Configurations section */}
               <View style={styles.configContainer}>
-                {/* 1. Gold Purity Swapper */}
-                <View style={styles.configSection}>
-                  <Text style={styles.configTitle}>Gold Purity</Text>
-                  <View style={styles.purityRow}>
-                    {['18K', '22K'].map((purity) => (
-                      <TouchableOpacity
-                        key={purity}
-                        style={[styles.purityBadge, selectedPurity === purity && styles.activePurityBadge]}
-                        onPress={() => setSelectedPurity(purity)}
-                      >
-                        <Text style={[styles.purityText, selectedPurity === purity && styles.activePurityText]}>
-                          {purity} Gold
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                {!FEATURE_FLAGS.SHOW_ONLY_BASIC_SPECS && (
+                  <View style={styles.configSection}>
+                    <Text style={styles.configTitle}>Gold Purity</Text>
+                    <View style={styles.purityRow}>
+                      {['18K', '22K'].map((purity) => (
+                        <TouchableOpacity
+                          key={purity}
+                          style={[styles.purityBadge, selectedPurity === purity && styles.activePurityBadge]}
+                          onPress={() => setSelectedPurity(purity)}
+                        >
+                          <Text style={[styles.purityText, selectedPurity === purity && styles.activePurityText]}>
+                            {purity} Gold
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
-                </View>
+                )}
 
                 {/* 2. Size Selector & Interactive Finder */}
                 {jewelryType.includes('ring') && (
@@ -645,7 +705,77 @@ const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({ scrollY: sc
               <View style={styles.divider} />
               
               <View style={styles.section}>
-                <AccordionSection id="specs" title="Product Specifications">
+                {FEATURE_FLAGS.SHOW_ONLY_BASIC_SPECS ? (
+                  <AccordionSection id="specs" title="Product Specifications">
+                    <View style={styles.specTable}>
+                      <View style={styles.specTableRow}>
+                        <Text style={styles.specTableLabel}>Gross Weight</Text>
+                        <Text style={styles.specTableValue}>
+                          {product.grossWeight ? `${product.grossWeight.toFixed(3)} g` : '-'}
+                        </Text>
+                      </View>
+                      <View style={styles.specTableRow}>
+                        <Text style={styles.specTableLabel}>Net Weight</Text>
+                        <Text style={styles.specTableValue}>
+                          {(product.netWeight || product.goldWeight) ? `${(product.netWeight || product.goldWeight).toFixed(3)} g` : '-'}
+                        </Text>
+                      </View>
+                      {stoneWeightGrams > 0 ? (
+                        <View style={styles.specTableRow}>
+                          <Text style={styles.specTableLabel}>Stone Weight</Text>
+                          <Text style={styles.specTableValue}>{stoneWeightGrams.toFixed(3)} g</Text>
+                        </View>
+                      ) : null}
+                      <View style={styles.specTableRow}>
+                        <Text style={styles.specTableLabel}>Purity</Text>
+                        <Text style={styles.specTableValue}>{product.purity || '22K'}</Text>
+                      </View>
+
+                      {/* Small Stone Metadata */}
+                      {validStonesInDetail.length > 0 ? (
+                        validStonesInDetail.map((st, sIdx) => {
+                          const wt = parseFloat(st.weight?.toString() || '0');
+                          const valText = (!isNaN(wt) && wt > 0) ? `${wt} ct` : 'Included';
+                          return (
+                            <View key={st.id || `stone-${sIdx}`} style={styles.specTableRow}>
+                              <Text style={styles.specTableLabel}>{st.name || st.category || 'Stone'}</Text>
+                              <Text style={styles.specTableValue}>{valText}</Text>
+                            </View>
+                          );
+                        })
+                      ) : (
+                        <>
+                          {product.daiWeight && product.daiWeight > 0 ? (
+                            <View style={styles.specTableRow}>
+                              <Text style={styles.specTableLabel}>Diamond</Text>
+                              <Text style={styles.specTableValue}>
+                                {product.daiWeight.toFixed(2)} ct
+                              </Text>
+                            </View>
+                          ) : null}
+                          {product.clrStoneWeight && product.clrStoneWeight > 0 ? (
+                            <View style={styles.specTableRow}>
+                              <Text style={styles.specTableLabel}>Color Stone</Text>
+                              <Text style={styles.specTableValue}>
+                                {product.clrStoneWeight.toFixed(2)} ct
+                              </Text>
+                            </View>
+                          ) : null}
+                          {product.gemstoneType && product.gemstoneType.trim().toLowerCase() !== 'none' && product.gemstoneType.trim() !== '' ? (
+                            <View style={styles.specTableRow}>
+                              <Text style={styles.specTableLabel}>Gemstone</Text>
+                              <Text style={styles.specTableValue}>
+                                {product.gemstoneType}{product.gemstoneWeight && product.gemstoneWeight > 0 ? ` • ${product.gemstoneWeight} ct` : ''}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </>
+                      )}
+                    </View>
+                  </AccordionSection>
+                ) : (
+                  <>
+                    <AccordionSection id="specs" title="Product Specifications">
                   <View style={styles.specTable}>
                     <View style={styles.specTableRow}>
                       <Text style={styles.specTableLabel}>Product</Text>
@@ -763,6 +893,10 @@ const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({ scrollY: sc
                   </AccordionSection>
                 ) : null}
 
+                </>
+                )}
+
+                {FEATURE_FLAGS.SHOW_PRICE_BREAKUP ? (
                 <AccordionSection id="price" title="Price Breakup">
                   {/* Metal Details Table */}
                   <View style={styles.bhimaInlineTable}>
@@ -887,24 +1021,9 @@ const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({ scrollY: sc
                     </TouchableOpacity>
                   </View>
                 </AccordionSection>
+                ) : null}
               </View>
-
-              <View style={styles.divider} />
-
-              <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]} onPress={handleWishlistToggle}>
-                <Text style={styles.secondaryButtonText}>
-                  {isInWishlist(product.id) ? "Remove from Wishlist" : "Add to Wishlist"}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Engagement Controls */}
-              <View style={styles.engagementRow}>
-                <TouchableOpacity style={styles.engagementBtn} onPress={handleShareRegistry}>
-                  <FontAwesome5 name="share-alt" size={12} color="#D4AF37" style={{ marginRight: 6 }} />
-                  <Text style={styles.engagementBtnText}>Share Registry</Text>
-                </TouchableOpacity>
-                
-              </View>
+              {/* Add to Wishlist & Share Registry hidden as requested */}
             </View>
           </View>
 
@@ -935,22 +1054,39 @@ const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({ scrollY: sc
                         <Text style={styles.suiteInlineItemMeta}>
                           {item.grossWeight ? `${item.grossWeight.toFixed(2)}g` : ''} {item.purity || ''} {item.metalColor || ''}
                         </Text>
-                        <Text style={styles.suiteInlineItemPrice}>{formatPrice(item.price, countryCode)}</Text>
+                        {FEATURE_FLAGS.SHOW_PRICES ? <Text style={styles.suiteInlineItemPrice}>{formatPrice(item.price, countryCode)}</Text> : null}
                       </View>
                       
                       <View style={styles.suiteInlineCardActions}>
-                        <TouchableOpacity 
-                          style={styles.suiteInlineAddBtn}
-                          onPress={() => {
-                            addToCart(item);
-                            setShowAddedMsg(true);
-                            setTimeout(() => setShowAddedMsg(false), 3000);
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          <FontAwesome5 name="shopping-bag" size={11} color="#291c0e" style={{ marginRight: 6 }} />
-                          <Text style={styles.suiteInlineAddBtnText}>Add Matching Piece</Text>
-                        </TouchableOpacity>
+                        {FEATURE_FLAGS.ENABLE_CART ? (
+                          <TouchableOpacity 
+                            style={styles.suiteInlineAddBtn}
+                            onPress={() => {
+                              addToCart(item);
+                              setShowAddedMsg(true);
+                              setTimeout(() => setShowAddedMsg(false), 3000);
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <FontAwesome5 name="shopping-bag" size={11} color="#291c0e" style={{ marginRight: 6 }} />
+                            <Text style={styles.suiteInlineAddBtnText}>Add Matching Piece</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity 
+                            style={[styles.suiteInlineAddBtn, { backgroundColor: '#25D366' }]}
+                            onPress={() => {
+                              const phone = FEATURE_FLAGS.WHATSAPP_PHONE_NUMBER;
+                              const msg = `Namaste Moksha Jewels! I am interested in matching piece: *${item.name}* (${item.productCode || item.id}). Please share more details.`;
+                              const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+                              if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank');
+                              else Linking.openURL(url);
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <FontAwesome5 name="whatsapp" size={12} color="#fff" style={{ marginRight: 6 }} />
+                            <Text style={[styles.suiteInlineAddBtnText, { color: '#fff' }]}>Inquire Piece</Text>
+                          </TouchableOpacity>
+                        )}
 
                         <TouchableOpacity 
                           style={styles.suiteInlineDetailsBtn}
@@ -992,7 +1128,7 @@ const ProductDetailsScreen: React.FC<ProductDetailsScreenProps> = ({ scrollY: sc
                     <OptimizedImage url={item.image} style={styles.recImage} shouldLoad={true} />
                     <View style={styles.recInfo}>
                       <Text style={styles.recName} numberOfLines={1}>{item.name}</Text>
-                      <Text style={styles.recPrice}>{formatPrice(item.price, countryCode)}</Text>
+                      {FEATURE_FLAGS.SHOW_PRICES ? <Text style={styles.recPrice}>{formatPrice(item.price, countryCode)}</Text> : null}
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -1444,6 +1580,18 @@ const styles = StyleSheet.create({
     color: "#D4AF37",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  whatsappInquiryButton: {
+    backgroundColor: "#25D366",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  whatsappInquiryButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "bold",
+    letterSpacing: 0.5,
   },
   actionButton: {
     backgroundColor: "#D4AF37",

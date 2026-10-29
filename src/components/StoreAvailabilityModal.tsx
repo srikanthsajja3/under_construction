@@ -14,6 +14,7 @@ import {
 import { FontAwesome5 } from "@expo/vector-icons";
 import { Product } from "../data/products";
 import OptimizedImage from "./OptimizedImage";
+import { FEATURE_FLAGS } from "../config/features";
 
 interface StoreAvailabilityModalProps {
   visible: boolean;
@@ -243,7 +244,7 @@ export const StoreAvailabilityModal: React.FC<StoreAvailabilityModalProps> = ({
                           shouldLoad={true}
                         />
                         <Text style={styles.prodName} numberOfLines={2}>{prod.name}</Text>
-                        <Text style={styles.prodPrice}>{formatPrice(prod.price)}</Text>
+                        {FEATURE_FLAGS.SHOW_PRICES ? <Text style={styles.prodPrice}>{formatPrice(prod.price)}</Text> : null}
                         
                         <TouchableOpacity
                           style={[
@@ -372,7 +373,7 @@ export const StoreAvailabilityModal: React.FC<StoreAvailabilityModalProps> = ({
                           shouldLoad={true}
                         />
                         <Text style={styles.similarProdName} numberOfLines={1}>{prod.name}</Text>
-                        <Text style={styles.similarProdPrice}>{formatPrice(prod.price)}</Text>
+                        {FEATURE_FLAGS.SHOW_PRICES ? <Text style={styles.similarProdPrice}>{formatPrice(prod.price)}</Text> : null}
                       </TouchableOpacity>
                     ))}
                   </View>

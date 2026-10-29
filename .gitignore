@@ -47,3 +47,4 @@ coverage/
 *.log
 razorpay.exe
 *.zip
+*_backup*.json

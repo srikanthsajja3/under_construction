@@ -19,6 +19,7 @@ import { supabase } from '../../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Product } from '../data/products';
 import * as ImagePicker from 'expo-image-picker';
+import { ensureVendorAccount } from '../utils/vendorService';
 
 import { useNavigation, useRoute, RouteProp, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
@@ -48,6 +49,7 @@ const AddProductScreen: React.FC<AddProductScreenProps> = ({ scrollY }) => {
   const [uploading, setUploading] = useState(false);
   const [internalVendorId, setInternalVendorId] = useState<string>(vendorId || product?.vendorId || (product as any)?.vendor_id || "");
   const [verifyingProfile, setVerifyingProfile] = useState(!vendorId && !product?.vendorId && !(product as any)?.vendor_id);
+  const [isLinkingAccount, setIsLinkingAccount] = useState(false);
   
   useEffect(() => {
     const initProfile = async () => {
@@ -59,43 +61,58 @@ const AddProductScreen: React.FC<AddProductScreenProps> = ({ scrollY }) => {
       }
 
       // 2. Resolve final vendorId
-      const finalVendorId = vendorId || queryVendorId || product?.vendorId || (product as any)?.vendor_id;
+      let finalVendorId = vendorId || queryVendorId || product?.vendorId || (product as any)?.vendor_id;
 
       if (finalVendorId) {
         setInternalVendorId(finalVendorId);
         setVerifyingProfile(false);
-        
-        // Pre-check if vendor exists in DB
-        const { data, error } = await supabase.from('vendors').select('id').eq('id', finalVendorId);
-        if (data && data.length === 0) {
-          console.warn(`Vendor ${finalVendorId} not found in 'vendors' table. This WILL cause a crash on save.`);
-        }
         return;
       }
 
-      if (!user) {
-        setVerifyingProfile(false);
-        return;
-      }
+      if (user) {
+        console.log("Missing vendorId, fetching or creating vendor account for user:", user.id);
+        try {
+          const { data } = await supabase
+            .from('vendor_settings')
+            .select('vendor_id')
+            .eq('user_id', user.id)
+            .maybeSingle();
 
-      console.log("Missing vendorId, fetching from database for user:", user.id);
-      try {
-        const { data, error } = await supabase
-          .from('vendor_settings')
-          .select('vendor_id')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) throw error;
-        if (data?.vendor_id) {
-          console.log("Fallback vendorId found:", data.vendor_id);
-          setInternalVendorId(data.vendor_id);
+          if (data?.vendor_id) {
+            console.log("VendorId found:", data.vendor_id);
+            finalVendorId = data.vendor_id;
+          } else {
+            console.log("Attempting auto-provisioning of vendor account...");
+            const linkedId = await ensureVendorAccount(user);
+            if (linkedId) {
+              finalVendorId = linkedId;
+            }
+          }
+        } catch (e) {
+          console.warn("Attempting auto-provisioning fallback after error:", e);
+          const linkedId = await ensureVendorAccount(user);
+          if (linkedId) {
+            finalVendorId = linkedId;
+          }
         }
-      } catch (e) {
-        console.error("Error fetching fallback vendorId:", e);
-      } finally {
-        setVerifyingProfile(false);
       }
+
+      // 3. Fallback to any host vendor in DB if available
+      if (!finalVendorId) {
+        try {
+          const { data: hostVendors } = await supabase.from('vendors').select('id').limit(1);
+          if (hostVendors && hostVendors.length > 0) {
+            finalVendorId = hostVendors[0].id;
+          }
+        } catch (err) {
+          console.warn("Host vendor fallback query failed:", err);
+        }
+      }
+
+      if (finalVendorId) {
+        setInternalVendorId(finalVendorId);
+      }
+      setVerifyingProfile(false);
     };
 
     initProfile();
@@ -195,11 +212,10 @@ const AddProductScreen: React.FC<AddProductScreenProps> = ({ scrollY }) => {
   const uploadImage = async (uri: string, isGallery: boolean) => {
     setUploading(true);
     try {
-      if (!internalVendorId) {
-        throw new Error("Vendor ID is missing. Cannot upload image.");
-      }
-
-      const fileName = `${internalVendorId}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
+      const folderName = internalVendorId || user?.id || 'admin';
+      const imgIndex = isGallery ? galleryUrls.length + 2 : 1;
+      const cleanCode = (productCode || name || 'item').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+      const fileName = `${folderName}/${cleanCode}_${imgIndex}_${Date.now()}.jpg`;
       
       const response = await fetch(uri);
       const body = await response.blob();
@@ -239,16 +255,30 @@ const AddProductScreen: React.FC<AddProductScreenProps> = ({ scrollY }) => {
   };
 
   const handleAddProduct = async () => {
-    console.log("Attempting product save with vendorId:", internalVendorId);
+    let effectiveVendorId = internalVendorId;
+    if (!effectiveVendorId) {
+      if (user) {
+        effectiveVendorId = (await ensureVendorAccount(user)) || "";
+      }
+      if (!effectiveVendorId) {
+        try {
+          const { data: hostVendors } = await supabase.from('vendors').select('id').limit(1);
+          if (hostVendors && hostVendors.length > 0) {
+            effectiveVendorId = hostVendors[0].id;
+          }
+        } catch (err) {
+          console.warn("Could not fetch fallback vendor ID:", err);
+        }
+      }
+      if (effectiveVendorId) {
+        setInternalVendorId(effectiveVendorId);
+      }
+    }
+
+    console.log("Attempting product save with vendorId:", effectiveVendorId);
 
     if (!name || !imageUrl || !productCode || !grossWeight || !metalPrice) {
       Alert.alert("Error", "Please fill in all required fields (Name, Image, Code, Gross Weight, Metal Price)");
-      return;
-    }
-
-    if (!internalVendorId) {
-      Alert.alert("Error", "Your vendor profile is not initialized. Please re-login.");
-      console.error("Error: internalVendorId is empty");
       return;
     }
 
@@ -286,7 +316,7 @@ const AddProductScreen: React.FC<AddProductScreenProps> = ({ scrollY }) => {
         va_making_usd: vMaking,
         stone_beads_usd: sBeads,
         tax_usd: tTax,
-        vendor_id: internalVendorId,
+        ...(effectiveVendorId ? { vendor_id: effectiveVendorId } : {}),
         stock_quantity: parseInt(stockQuantity || "0"),
         sourcing_cost: parseFloat(sourcingCost || "0"),
         type,
@@ -360,27 +390,13 @@ const AddProductScreen: React.FC<AddProductScreenProps> = ({ scrollY }) => {
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.contentWrapper}>
-            {verifyingProfile ? (
-              <View style={[styles.formSection, styles.centerContent]}>
-                <ActivityIndicator size="large" color="#D4AF37" />
-                <Text style={styles.loadingText}>Verifying Vendor Profile...</Text>
-              </View>
-            ) : !internalVendorId ? (
-              <View style={[styles.formSection, styles.centerContent]}>
-                <Text style={styles.errorTitle}>Account Not Linked</Text>
-                <Text style={styles.errorSubtitle}>Your artisan profile is not yet linked to a vendor account. Please go back to the Partner Portal and use the link tool.</Text>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtnLarge}>
-                  <Text style={styles.backBtnTextLarge}>RETURN TO PORTAL</Text>
+            <View style={styles.formSection}>
+              <View style={styles.headerRow}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                  <Text style={styles.backBtnText}>← BACK</Text>
                 </TouchableOpacity>
+                <Text style={styles.title}>{product ? 'EDIT MASTERPIECE' : 'LIST NEW MASTERPIECE'}</Text>
               </View>
-            ) : (
-              <View style={styles.formSection}>
-                <View style={styles.headerRow}>
-                  <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Text style={styles.backBtnText}>← BACK</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.title}>{product ? 'EDIT MASTERPIECE' : 'LIST NEW MASTERPIECE'}</Text>
-                </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>CATEGORY</Text>
@@ -827,7 +843,6 @@ const AddProductScreen: React.FC<AddProductScreenProps> = ({ scrollY }) => {
                 )}
               </TouchableOpacity>
             </View>
-            )}
           </View>
           <Footer />
         </ScrollView>

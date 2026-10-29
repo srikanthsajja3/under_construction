@@ -20,6 +20,8 @@ import { useUI } from '../contexts/UIContext';
 import { useCart } from '../contexts/CartContext';
 import { useCountry } from '../contexts/CountryContext';
 import { formatPrice } from '../utils/currency';
+import { FEATURE_FLAGS } from '../config/features';
+import { FontAwesome5 } from '@expo/vector-icons';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useRef } from 'react';
@@ -41,7 +43,7 @@ const CartScreen: React.FC<CartScreenProps> = ({ scrollY: scrollYProp }) => {
   const isWeb = Platform.OS === 'web';
 
   const handleWhatsAppEnquiry = () => {
-    const phoneNumber = "919922244439";
+    const phoneNumber = FEATURE_FLAGS.WHATSAPP_PHONE_NUMBER;
     let itemList = cart.map(item => `- ${item.name} (Qty: ${item.quantity}, ID: ${item.id})`).join('\n');
     
     const message = `Namaste Moksha Jewels! I am interested in these pieces from my bag:
@@ -142,9 +144,20 @@ Please provide more details on how to proceed with these items.`;
                     <Text style={styles.totalValue}>{formatPrice(cartTotal, countryCode)}</Text>
                   </View>
                   
-                  <TouchableOpacity style={styles.checkoutBtn} onPress={() => navigation.navigate('Checkout')}>
-                    <Text style={styles.checkoutBtnText}>Proceed to Checkout</Text>
-                  </TouchableOpacity>
+                  {FEATURE_FLAGS.ENABLE_CHECKOUT ? (
+                    <TouchableOpacity style={styles.checkoutBtn} onPress={() => navigation.navigate('Checkout')}>
+                      <Text style={styles.checkoutBtnText}>Proceed to Checkout</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity 
+                      style={[styles.checkoutBtn, { backgroundColor: '#25D366', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]} 
+                      onPress={handleWhatsAppEnquiry}
+                      activeOpacity={0.8}
+                    >
+                      <FontAwesome5 name="whatsapp" size={18} color="#fff" style={{ marginRight: 8 }} />
+                      <Text style={[styles.checkoutBtnText, { color: '#fff' }]}>Inquire Bag on WhatsApp</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </>
             )}

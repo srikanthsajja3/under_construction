@@ -17,6 +17,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
+import { FEATURE_FLAGS } from '../config/features';
+import { Linking } from 'react-native';
 
 interface SideDrawerProps {
   isVisible: boolean;
@@ -187,9 +189,28 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isVisible, onClose, onNavigate,
           
           {user ? (
             <>
-              <NavItem icon="history" label="My Orders" screen="orders" />
+              {FEATURE_FLAGS.ENABLE_ORDERS ? (
+                <NavItem icon="history" label="My Orders" screen="orders" />
+              ) : null}
               <NavItem icon="user-circle" label="Profile" screen="profile" />
             </>
+          ) : null}
+
+          {FEATURE_FLAGS.ENABLE_WHATSAPP_INQUIRY ? (
+            <TouchableOpacity 
+              style={styles.navItem} 
+              onPress={() => {
+                onClose();
+                const url = `https://wa.me/${FEATURE_FLAGS.WHATSAPP_PHONE_NUMBER}?text=${encodeURIComponent("Namaste Moksha Jewels! I would like to inquire about your jewelry collection.")}`;
+                if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank');
+                else Linking.openURL(url);
+              }}
+            >
+              <View style={styles.navIconContainer}>
+                <FontAwesome5 name="whatsapp" size={18} color="#25D366" />
+              </View>
+              <Text style={[styles.navLabel, { color: "#25D366" }]}>WhatsApp Us</Text>
+            </TouchableOpacity>
           ) : null}
 
           <View style={styles.separator} />
@@ -227,12 +248,8 @@ const SideDrawer: React.FC<SideDrawerProps> = ({ isVisible, onClose, onNavigate,
 
           <View style={styles.separator} />
 
-          {isAdmin ? (
-            <NavItem icon="user-shield" label="Admin Portal" screen="admin" badge="ADMIN" />
-          ) : null}
-
-          {isVendor ? (
-            <NavItem icon="store" label="Partner Portal" screen="vendor" badge="PARTNER" />
+          {isAdmin || isVendor ? (
+            <NavItem icon="user-shield" label="Host Admin Portal" screen="admin" badge="HOST" />
           ) : null}
 
           {!user ? (

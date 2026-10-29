@@ -183,10 +183,17 @@ export async function fetchServerApkEstimate(
       p_input: input,
     });
 
-    if (!error && data && typeof data === 'object') {
+    if (error) {
+      throw new Error(`Server calculation failed: ${error.message}`);
+    }
+
+    if (data && typeof data === 'object') {
       return data as EstimationResult;
     }
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.message?.startsWith('Server calculation failed:')) {
+      throw err;
+    }
     console.warn('fetchServerApkEstimate: Server RPC unavailable, using local engine:', err);
   }
 

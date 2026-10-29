@@ -11,6 +11,8 @@ import { useNavigation, useRoute, NavigationProp } from "@react-navigation/nativ
 import { RootStackParamList } from "../navigation/types";
 
 import { useUI } from "../contexts/UIContext";
+import { FEATURE_FLAGS } from "../config/features";
+import { Linking } from "react-native";
 
 const MAX_CONTENT_WIDTH = Platform.OS === 'web' ? '98%' : 1200;
 const MAX_PX_WIDTH = 2500;
@@ -281,16 +283,30 @@ const Header: React.FC<HeaderProps> = ({
                   <FontAwesome5 name="heart" size={iconSize} color="#D4AF37" />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.actionItem, { marginLeft: iconMargin }]} onPress={navigateToCart}>
-                  <View>
-                    <FontAwesome5 name="shopping-bag" size={iconSize} color="#D4AF37" />
-                    {cartCount > 0 ? (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{cartCount}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </TouchableOpacity>
+                {FEATURE_FLAGS.ENABLE_CART ? (
+                  <TouchableOpacity style={[styles.actionItem, { marginLeft: iconMargin }]} onPress={navigateToCart}>
+                    <View>
+                      <FontAwesome5 name="shopping-bag" size={iconSize} color="#D4AF37" />
+                      {cartCount > 0 ? (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>{cartCount}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity 
+                    style={[styles.actionItem, { marginLeft: iconMargin }]} 
+                    onPress={() => {
+                      const url = `https://wa.me/${FEATURE_FLAGS.WHATSAPP_PHONE_NUMBER}?text=${encodeURIComponent("Namaste Moksha Jewels! I would like to inquire about your jewelry collection.")}`;
+                      if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank');
+                      else Linking.openURL(url);
+                    }}
+                    accessibilityLabel="WhatsApp Inquiry"
+                  >
+                    <FontAwesome5 name="whatsapp" size={iconSize + 2} color="#25D366" />
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity style={[styles.actionItem, { marginLeft: iconMargin }]} onPress={onPressMenu}>
                   <FontAwesome5 name="bars" size={iconSize} color="#D4AF37" />
@@ -302,22 +318,36 @@ const Header: React.FC<HeaderProps> = ({
                   <FontAwesome5 name="heart" size={iconSize} color="#D4AF37" />
                 </TouchableOpacity>
 
-                {user ? (
+                {user && FEATURE_FLAGS.ENABLE_ORDERS ? (
                   <TouchableOpacity style={[styles.actionItem, { marginLeft: iconMargin }]} onPress={navigateToOrders}>
                     <FontAwesome5 name="history" size={iconSize} color="#D4AF37" />
                   </TouchableOpacity>
                 ) : null}
 
-                <TouchableOpacity style={[styles.actionItem, { marginLeft: iconMargin }]} onPress={navigateToCart}>
-                  <View>
-                    <FontAwesome5 name="shopping-bag" size={iconSize} color="#D4AF37" />
-                    {cartCount > 0 ? (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{cartCount}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </TouchableOpacity>
+                {FEATURE_FLAGS.ENABLE_CART ? (
+                  <TouchableOpacity style={[styles.actionItem, { marginLeft: iconMargin }]} onPress={navigateToCart}>
+                    <View>
+                      <FontAwesome5 name="shopping-bag" size={iconSize} color="#D4AF37" />
+                      {cartCount > 0 ? (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>{cartCount}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity 
+                    style={[styles.actionItem, { marginLeft: iconMargin }]} 
+                    onPress={() => {
+                      const url = `https://wa.me/${FEATURE_FLAGS.WHATSAPP_PHONE_NUMBER}?text=${encodeURIComponent("Namaste Moksha Jewels! I would like to inquire about your jewelry collection.")}`;
+                      if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank');
+                      else Linking.openURL(url);
+                    }}
+                    accessibilityLabel="WhatsApp Inquiry"
+                  >
+                    <FontAwesome5 name="whatsapp" size={iconSize + 2} color="#25D366" />
+                  </TouchableOpacity>
+                )}
 
                 {isAdmin ? (
                   <TouchableOpacity style={[styles.actionItem, { marginLeft: iconMargin }]} onPress={navigateToAdmin}>
@@ -384,7 +414,7 @@ const Header: React.FC<HeaderProps> = ({
         </View>
       </Animated.View>
 
-      {isHome && (
+      {isHome && FEATURE_FLAGS.SHOW_GOLD_RATES && (
         <Animated.View style={{ opacity: bannerOpacity, height: bannerHeight, overflow: 'hidden' }}>
           <GoldRateBanner />
         </Animated.View>

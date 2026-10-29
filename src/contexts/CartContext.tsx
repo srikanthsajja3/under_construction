@@ -33,6 +33,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const mapDbToCartItem = useCallback((item: any): CartItem | null => {
     const product = item?.product;
     if (!product) return null;
+    const dbPrice = parseFloat(product.base_price_usd || product.price || product.prc_amount || product.cost_price || 0);
     return {
       id: product.id,
       name: product.name || 'Moksha Masterpiece',
@@ -43,7 +44,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       goldWeight: parseFloat(product.gold_weight || product.goldWeight || 0),
       purity: product.purity || '22K',
       metalColor: product.metal_color || product.metalColor || 'Yellow Gold',
-      price: parseFloat(product.base_price_usd || product.price || 0),
+      price: dbPrice > 0 ? dbPrice : 1000,
       priceBreakup: {
         metal: parseFloat(product.metal_price_usd || product.priceBreakup?.metal || 0),
         vaMaking: parseFloat(product.va_making_usd || product.priceBreakup?.vaMaking || 0),
@@ -224,10 +225,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user?.id, cart, fetchServerCartSummary]);
 
   const cartTotal = useMemo(() => {
-    if (serverSummary?.grand_total_local !== undefined) {
+    if (serverSummary?.grand_total_local !== undefined && serverSummary.grand_total_local > 0) {
       return serverSummary.grand_total_local;
     }
-    return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+    return cart.reduce((total, item) => total + (item.price || 0) * item.quantity, 0);
   }, [serverSummary, cart]);
 
   const cartCount = useMemo(() => {

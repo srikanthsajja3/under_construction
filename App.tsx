@@ -13,11 +13,13 @@ import { WishlistProvider } from "./src/contexts/WishlistContext";
 import { StripeWrapper } from "./src/components/StripeWrapper";
 import SideDrawer from "./src/components/SideDrawer";
 import Header from "./src/components/Header";
+import { FloatingWhatsAppButton } from "./src/components/FloatingWhatsAppButton";
 
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { AppNavigator } from "./src/navigation/AppNavigator";
 import { RootStackParamList } from "./src/navigation/types";
 import { UIProvider, useUI } from "./src/contexts/UIContext";
+import { NoNetworkWrapper } from "./src/components/NoNetworkScreen";
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
@@ -155,6 +157,7 @@ function AppContent() {
           activeScreen={currentRoute}
         />
       </NavigationContainer>
+      <FloatingWhatsAppButton />
     </View>
   );
 }
@@ -170,7 +173,9 @@ export default function App() {
                 <CountryProvider>
                   <GoldRateProvider>
                     <StripeWrapper>
-                      <AppContent />
+                      <NoNetworkWrapper>
+                        <AppContent />
+                      </NoNetworkWrapper>
                     </StripeWrapper>
                   </GoldRateProvider>
                 </CountryProvider>

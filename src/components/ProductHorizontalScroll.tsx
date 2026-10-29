@@ -12,6 +12,7 @@ import {
 import OptimizedImage from './OptimizedImage';
 import { Product } from '../data/products';
 import { formatPrice } from '../utils/currency';
+import { FEATURE_FLAGS } from '../config/features';
 import { useCountry } from '../contexts/CountryContext';
 
 interface ProductHorizontalScrollProps {
@@ -63,7 +64,7 @@ const ProductHorizontalScroll: React.FC<ProductHorizontalScrollProps> = ({
             </View>
             <View style={styles.info}>
               <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-              <Text style={styles.price}>{formatPrice(item.price, countryCode)}</Text>
+              {FEATURE_FLAGS.SHOW_PRICES ? <Text style={styles.price}>{formatPrice(item.price, countryCode)}</Text> : null}
             </View>
           </TouchableOpacity>
         ))}

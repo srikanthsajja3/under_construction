@@ -6,6 +6,7 @@ import OptimizedImage from "./OptimizedImage";
 import { Product, fetchProductsFromSupabase, ProductFilters } from "../data/products";
 import { useCountry } from "../contexts/CountryContext";
 import { formatPrice } from "../utils/currency";
+import { FEATURE_FLAGS } from "../config/features";
 import { SortOption } from "./CategoryBar";
 import { useWishlist } from "../contexts/WishlistContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -100,12 +101,7 @@ const AnimatedProductCard = React.memo(({ item, itemWidth, onSelectProduct, hand
               />
             </View>
           )}
-          {/* Hallmark Trust Badge */}
-          <View style={styles.hallmarkBadge}>
-            <Text style={styles.hallmarkBadgeText}>
-              {item.category === 'Diamonds' ? 'IGI CERTIFIED' : 'BIS 916'}
-            </Text>
-          </View>
+
           <TouchableOpacity 
             style={styles.wishlistIcon} 
             onPress={(e) => {
@@ -120,7 +116,7 @@ const AnimatedProductCard = React.memo(({ item, itemWidth, onSelectProduct, hand
         </View>
         <View style={styles.productInfo}>
           <Text style={styles.productCodeBadge}>{item.productCode || item.sku}</Text>
-          <Text style={styles.productPrice}>{formatPrice(item.price, countryCode)}</Text>
+          {FEATURE_FLAGS.SHOW_PRICES ? <Text style={styles.productPrice}>{formatPrice(item.price, countryCode)}</Text> : null}
         </View>
       </TouchableOpacity>
     </Animated.View>
